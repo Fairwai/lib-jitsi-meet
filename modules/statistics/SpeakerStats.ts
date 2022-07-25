@@ -10,7 +10,7 @@ class SpeakerStats {
     private _isLocalStats: boolean;
     private _dominantSpeakerStart: number;
     private _hasLeft: boolean;
-    private _facialExpressions: { [key in FacialExpressions]: number };
+    private _faceExpressions: { [key in FacialExpressions]: number };
     totalDominantSpeakerTime: number;
     displayName: string;
     /**
