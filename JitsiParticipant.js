@@ -196,7 +196,7 @@ export default class JitsiParticipant {
      * recorder).
      */
     isHiddenFromRecorder() {
-        return Boolean(this._identity?.user?.['hidden-from-recorder']);
+        return this._identity?.user?.['hidden-from-recorder'] === 'true';
     }
 
     /**
@@ -326,5 +326,22 @@ export default class JitsiParticipant {
      */
     setBotType(newBotType) {
         this._botType = newBotType;
+    }
+
+    /**
+     * Returns the connection jid for the participant.
+     *
+     * @returns {string|undefined} - The connection jid of the participant.
+     */
+    getConnectionJid() {
+        return this._connectionJid;
+    }
+
+    /**
+     * Sets the connection jid for the participant.
+     * @param {String} newJid - The connection jid to set.
+     */
+    setConnectionJid(newJid) {
+        this._connectionJid = newJid;
     }
 }

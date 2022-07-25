@@ -230,6 +230,14 @@ export default class TraceablePeerConnection {
      */
     _usesTransceiverCodecPreferences: boolean;
     /**
+     * Indicates whether an audio track has ever been added to the peer connection.
+     */
+    _hasHadAudioTrack: boolean;
+    /**
+     * Indicates whether a video track has ever been added to the peer connection.
+     */
+    _hasHadVideoTrack: boolean;
+    /**
      * @type {number} The max number of stats to keep in this.stats. Limit to
      * 300 values, i.e. 5 minutes; set to 0 to disable
      */
@@ -292,6 +300,20 @@ export default class TraceablePeerConnection {
      * <tt>false</tt> if it's turned off.
      */
     isSimulcastOn(): boolean;
+    /**
+     * Handles remote source mute and unmute changed events.
+     *
+     * @param {string} sourceName - The name of the remote source.
+     * @param {boolean} isMuted - The new mute state.
+     */
+    _sourceMutedChanged(sourceName: string, isMuted: boolean): void;
+    /**
+     * Handles remote source videoType changed events.
+     *
+     * @param {string} sourceName - The name of the remote source.
+     * @param {boolean} isMuted - The new value.
+     */
+    _sourceVideoTypeChanged(sourceName: string, videoType: any): void;
     /**
      * Obtains audio levels of the remote audio tracks by getting the source information on the RTCRtpReceivers.
      * The information relevant to the ssrc is updated each time a RTP packet constaining the ssrc is received.
@@ -427,14 +449,12 @@ export default class TraceablePeerConnection {
      */
     getLocalSSRC(localTrack: JitsiLocalTrack): number;
     /**
-     * When doing unified plan simulcast, we'll have a set of ssrcs with the
-     * same msid but no ssrc-group, since unified plan signals the simulcast
-     * group via the a=simulcast line.  Unfortunately, Jicofo will complain
-     * if it sees ssrcs with matching msids but no ssrc-group, so we'll inject
-     * an ssrc-group line to make Jicofo happy.
+     * When doing unified plan simulcast, we'll have a set of ssrcs but no ssrc-groups on Firefox. Unfortunately, Jicofo
+     * will complain if it sees ssrcs with matching msids but no ssrc-group, so a ssrc-group line is injected to make
+     * Jicofo happy.
+     *
      * @param desc A session description object (with 'type' and 'sdp' fields)
-     * @return A session description object with its sdp field modified to
-     * contain an inject ssrc-group for simulcast
+     * @return A session description object with its sdp field modified to contain an inject ssrc-group for simulcast.
      */
     _injectSsrcGroupForUnifiedSimulcast(desc: any): any;
     _getSSRC(rtcId: any): {
@@ -484,12 +504,11 @@ export default class TraceablePeerConnection {
      */
     addTrack(track: JitsiLocalTrack, isInitiator?: boolean): Promise<void>;
     /**
-     * Adds local track as part of the unmute operation.
-     * @param {JitsiLocalTrack} track the track to be added as part of the unmute operation.
+     * Adds local track to the RTCPeerConnection.
      *
-     * @return {Promise<boolean>} Promise that resolves to true if the underlying PeerConnection's
-     * state has changed and renegotiation is required, false if no renegotiation is needed or
-     * Promise is rejected when something goes wrong.
+     * @param {JitsiLocalTrack} track the track to be added to the pc.
+     * @return {Promise<boolean>} Promise that resolves to true if the underlying PeerConnection's state has changed and
+     * renegotiation is required, false if no renegotiation is needed or Promise is rejected when something goes wrong.
      */
     addTrackUnmute(track: JitsiLocalTrack): Promise<boolean>;
     private _addStream;
@@ -562,7 +581,7 @@ export default class TraceablePeerConnection {
      * Remove local track from this TPC.
      * @param {JitsiLocalTrack} localTrack the track to be removed from this TPC.
      *
-     * FIXME It should probably remove a boolean just like {@link removeTrackMute}
+     * FIXME It should probably remove a boolean just like {@link removeTrackFromPc}
      *       The same applies to addTrack.
      */
     removeTrack(localTrack: JitsiLocalTrack): void;
@@ -603,12 +622,11 @@ export default class TraceablePeerConnection {
      */
     replaceTrack(oldTrack: JitsiLocalTrack | null, newTrack: JitsiLocalTrack | null): Promise<boolean>;
     /**
-     * Removes local track as part of the mute operation.
-     * @param {JitsiLocalTrack} localTrack the local track to be remove as part of
-     * the mute operation.
-     * @return {Promise<boolean>} Promise that resolves to true if the underlying PeerConnection's
-     * state has changed and renegotiation is required, false if no renegotiation is needed or
-     * Promise is rejected when something goes wrong.
+     * Removes local track from the RTCPeerConnection.
+     *
+     * @param {JitsiLocalTrack} localTrack the local track to be removed.
+     * @return {Promise<boolean>} Promise that resolves to true if the underlying PeerConnection's state has changed and
+     * renegotiation is required, false if no renegotiation is needed or Promise is rejected when something goes wrong.
      */
     removeTrackMute(localTrack: JitsiLocalTrack): Promise<boolean>;
     createDataChannel(label: any, opts: any): RTCDataChannel;
@@ -624,9 +642,23 @@ export default class TraceablePeerConnection {
      */
     _mungeOpus(description: RTCSessionDescription): RTCSessionDescription;
     /**
+     * Munges the SDP to set all directions to inactive and drop all ssrc and ssrc-groups.
+     *
+     * @param {RTCSessionDescription} description that needs to be munged.
+     * @returns {RTCSessionDescription} the munged description.
+     */
+    _mungeInactive(description: RTCSessionDescription): RTCSessionDescription;
+    /**
      * Sets up the _dtlsTransport object and initializes callbacks for it.
      */
     _initializeDtlsTransport(): void;
+    /**
+     * Sets the max bitrates on the video m-lines when VP9 is the selected codec.
+     *
+     * @param {RTCSessionDescription} description - The local description that needs to be munged.
+     * @returns RTCSessionDescription
+     */
+    _setVp9MaxBitrates(description: RTCSessionDescription): RTCSessionDescription;
     /**
      * Configures the stream encodings depending on the video type and the bitrates configured.
      *

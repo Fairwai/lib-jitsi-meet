@@ -42,6 +42,14 @@ export default class JingleSessionPC extends JingleSession {
      */
     static parseMaxFrameHeight(jingleContents: JQueryStatic): number | null;
     /**
+     * Parses the source-name and max frame height value of the 'content-modify' IQ when source-name signaling
+     * is enabled.
+     *
+     * @param {jQuery} jingleContents - A jQuery selector pointing to the '>jingle' element.
+     * @returns {Object|null}
+     */
+    static parseSourceMaxFrameHeight(jingleContents: any): any | null;
+    /**
      * Creates new <tt>JingleSessionPC</tt>
      * @param {string} sid the Jingle Session ID - random string which identifies the session
      * @param {string} localJid our JID
@@ -107,6 +115,13 @@ export default class JingleSessionPC extends JingleSession {
      */
     localRecvMaxFrameHeight: number | undefined;
     /**
+     * Receiver constraints (max height) set by the application per remote source. Will be used for p2p connection
+     * in lieu of localRecvMaxFrameHeight when source-name signaling is enabled.
+     *
+     * @type {Map<string, number>}
+     */
+    _sourceReceiverConstraints: Map<string, number>;
+    /**
      * Indicates whether or not this session is willing to send/receive
      * video media. When set to <tt>false</tt> the underlying peer
      * connection will disable local video transfer and the remote peer will
@@ -155,6 +170,12 @@ export default class JingleSessionPC extends JingleSession {
      * @type {Number|undefined}
      */
     remoteRecvMaxFrameHeight: number | undefined;
+    /**
+     * Remote preference for the receive video max frame heights when source-name signaling is enabled.
+     *
+     * @type {Map<string, number>|undefined}
+     */
+    remoteSourceMaxFrameHeights: Map<string, number> | undefined;
     /**
      * The queue used to serialize operations done on the peerconnection.
      *
@@ -209,6 +230,12 @@ export default class JingleSessionPC extends JingleSession {
      * @returns {Number|undefined}
      */
     getRemoteRecvMaxFrameHeight(): number | undefined;
+    /**
+     * Remote preference for receive video max frame heights when source-name signaling is enabled.
+     *
+     * @returns {Map<string, number>|undefined}
+     */
+    getRemoteSourcesRecvMaxFrameHeight(): Map<string, number> | undefined;
     /**
      * Sends given candidate in Jingle 'transport-info' message.
      * @param {RTCIceCandidate} candidate the WebRTC ICE candidate instance
@@ -356,8 +383,9 @@ export default class JingleSessionPC extends JingleSession {
      * the remote party.
      *
      * @param {Number} maxFrameHeight - the new value to set.
+     * @param {Map<string, number>} sourceReceiverConstraints - The receiver constraints per source.
      */
-    setReceiverVideoConstraint(maxFrameHeight: number): void;
+    setReceiverVideoConstraint(maxFrameHeight: number, sourceReceiverConstraints: Map<string, number>): void;
     /**
      * Sends Jingle 'transport-accept' message which is a response to
      * 'transport-replace'.
@@ -492,7 +520,7 @@ export default class JingleSessionPC extends JingleSession {
      * Adds a new track to the peerconnection. This method needs to be called only when a secondary JitsiLocalTrack is
      * being added to the peerconnection for the first time.
      *
-     * @param {JitsiLocalTrack} localTrack track to be added to the peer connection.
+     * @param {Array<JitsiLocalTrack>} localTracks - Tracks to be added to the peer connection.
      * @returns {Promise<void>} that resolves when the track is successfully added to the peerconnection, rejected
      * otherwise.
      */
@@ -535,12 +563,11 @@ export default class JingleSessionPC extends JingleSession {
      */
     private _verifyNoSSRCChanged;
     /**
-     * Adds local track back to this session, as part of the unmute operation.
+     * Adds local track back to the peerconnection associated with this session.
      * @param {JitsiLocalTrack} track
-     * @return {Promise} a promise that will resolve once the local track is
-     * added back to this session and renegotiation succeeds. Will be rejected
-     * with a <tt>string</tt> that provides some error details in case something
-     * goes wrong.
+     * @return {Promise} a promise that will resolve once the local track is added back to this session and
+     * renegotiation succeeds (if its warranted). Will be rejected with a <tt>string</tt> that provides some error
+     * details in case something goes wrong.
      */
     addTrackAsUnmute(track: JitsiLocalTrack): Promise<any>;
     /**
@@ -553,13 +580,12 @@ export default class JingleSessionPC extends JingleSession {
      */
     removeTrackAsMute(track: JitsiLocalTrack): Promise<any>;
     /**
-     * See {@link addTrackAsUnmute} and {@link removeTrackAsMute}.
-     * @param {boolean} isMute <tt>true</tt> for "remove as mute" or
-     * <tt>false</tt> for "add as unmute".
+     * See {@link addTrackToPc} and {@link removeTrackFromPc}.
+     * @param {boolean} isRemove <tt>true</tt> for "remove" operation or <tt>false</tt> for "add" operation.
      * @param {JitsiLocalTrack} track the track that will be added/removed
      * @private
      */
-    private _addRemoveTrackAsMuteUnmute;
+    private _addRemoveTrack;
     /**
      * Resumes or suspends media transfer over the underlying peer connection.
      * @param {boolean} audioActive <tt>true</tt> to enable audio media

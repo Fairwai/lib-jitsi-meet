@@ -481,12 +481,13 @@ declare class JitsiConference {
      * which describes the error.
      */
     _addLocalTrackAsUnmute(track: JitsiLocalTrack): Promise<any>;
+
     /**
-     * Method called by the {@link JitsiLocalTrack} (a video one) in order to remove
-     * the underlying WebRTC MediaStream from the PeerConnection. The purpose of
-     * that is to stop sending any data and turn off the HW camera device.
+     * Method called by the {@link JitsiLocalTrack} in order to remove the underlying MediaStream from the
+     * RTCPeerConnection.
+     *
      * @param {JitsiLocalTrack} track the local track that will be removed.
-     * @return {Promise}
+     * @return {Promise} resolved when the process is done or rejected with a string which describes the error.
      */
     _removeLocalTrackAsMute(track: JitsiLocalTrack): Promise<any>;
     /**
@@ -986,10 +987,10 @@ declare class JitsiConference {
      */
     getSpeakerStats(): object;
     /**
-     * Sends a facial expression with its duration to the xmpp server.
+     * Sends a face landmarks object to the xmpp server.
      * @param {Object} payload
      */
-    sendFacialExpression(payload: any): void;
+    sendFaceLandmarks(payload: any): void;
     /**
      * Sets the constraints for the video that is requested from the bridge.
      *

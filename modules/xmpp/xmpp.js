@@ -8,6 +8,7 @@ import * as JitsiConnectionEvents from '../../JitsiConnectionEvents';
 import { XMPPEvents } from '../../service/xmpp/XMPPEvents';
 import browser from '../browser';
 import { E2EEncryption } from '../e2ee/E2EEncryption';
+import FeatureFlags from '../flags/FeatureFlags';
 import Statistics from '../statistics/statistics';
 import GlobalOnErrorHandler from '../util/GlobalOnErrorHandler';
 import Listenable from '../util/Listenable';
@@ -136,6 +137,10 @@ export default class XMPP extends Listenable {
         this.token = token;
         this.authenticatedUser = false;
 
+        if (!this.options.deploymentInfo) {
+            this.options.deploymentInfo = {};
+        }
+
         initStropheNativePlugins();
 
         const xmppPing = options.xmppPing || {};
@@ -152,7 +157,7 @@ export default class XMPP extends Listenable {
             websocketKeepAlive: options.websocketKeepAlive,
             websocketKeepAliveUrl: options.websocketKeepAliveUrl,
             xmppPing,
-            shard: options.deploymentInfo?.shard
+            shard: options.deploymentInfo.shard
         });
 
         // forwards the shard changed event
@@ -230,9 +235,6 @@ export default class XMPP extends Listenable {
         // XEP-0294
         // this.caps.addFeature('urn:xmpp:jingle:apps:rtp:rtp-hdrext:0');
 
-        this.caps.addFeature('urn:ietf:rfc:5761'); // rtcp-mux
-        this.caps.addFeature('urn:ietf:rfc:5888'); // a=group, e.g. bundle
-
         // this.caps.addFeature('urn:ietf:rfc:5576'); // a=ssrc
 
         // Enable Lipsync ?
@@ -247,6 +249,21 @@ export default class XMPP extends Listenable {
 
         if (E2EEncryption.isSupported(this.options)) {
             this.caps.addFeature(FEATURE_E2EE, false, true);
+        }
+
+        // Advertise source-name signaling when the endpoint supports it.
+        if (FeatureFlags.isSourceNameSignalingEnabled()) {
+            logger.info('Source-name signaling is enabled');
+            this.caps.addFeature('http://jitsi.org/source-name');
+        }
+        if (FeatureFlags.isReceiveMultipleVideoStreamsSupported()) {
+            logger.info('Receiving multiple video streams is enabled');
+            this.caps.addFeature('http://jitsi.org/receive-multiple-video-streams');
+        }
+
+        if (FeatureFlags.isSsrcRewritingSupported()) {
+            logger.info('SSRC rewriting is supported');
+            this.caps.addFeature('http://jitsi.org/ssrc-rewriting');
         }
     }
 
@@ -451,6 +468,10 @@ export default class XMPP extends Listenable {
 
             if (identity.type === 'region') {
                 this.options.deploymentInfo.region = this.connection.region = identity.name;
+            }
+
+            if (identity.type === 'release') {
+                this.options.deploymentInfo.backendRelease = identity.name;
             }
 
             if (identity.type === 'breakout_rooms') {
@@ -907,11 +928,11 @@ export default class XMPP extends Listenable {
     }
 
     /**
-     * Sends facial expression to speaker stats component.
+     * Sends face expressions to speaker stats component.
      * @param {String} roomJid - The room jid where the speaker event occurred.
      * @param {Object} payload - The expression to be sent to the speaker stats.
      */
-    sendFacialExpressionEvent(roomJid, payload) {
+    sendFaceExpressionEvent(roomJid, payload) {
         // no speaker stats component advertised
         if (!this.speakerStatsComponentAddress || !roomJid) {
             return;
@@ -919,10 +940,10 @@ export default class XMPP extends Listenable {
 
         const msg = $msg({ to: this.speakerStatsComponentAddress });
 
-        msg.c('facialExpression', {
+        msg.c('faceExpression', {
             xmlns: 'http://jitsi.org/jitmeet',
             room: roomJid,
-            expression: payload.facialExpression,
+            expression: payload.faceExpression,
             duration: payload.duration
         }).up();
 
@@ -1039,13 +1060,16 @@ export default class XMPP extends Listenable {
         if (aprops && Object.keys(aprops).length > 0) {
             const logObject = {};
 
-            logObject.id = 'deployment_info';
             for (const attr in aprops) {
                 if (aprops.hasOwnProperty(attr)) {
                     logObject[attr] = aprops[attr];
                 }
             }
 
+            // Let's push to analytics any updates that may have come from the backend
+            Statistics.analytics.addPermanentProperties({ ...logObject });
+
+            logObject.id = 'deployment_info';
             Statistics.sendLog(JSON.stringify(logObject));
         }
 

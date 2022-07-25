@@ -1,7 +1,7 @@
 import { getLogger } from '@jitsi/logger';
 import transform from 'sdp-transform';
 
-import MediaDirection from '../../service/RTC/MediaDirection';
+import { MediaDirection } from '../../service/RTC/MediaDirection';
 import { MediaType } from '../../service/RTC/MediaType';
 import { VideoType } from '../../service/RTC/VideoType';
 import browser from '../browser';
@@ -297,7 +297,8 @@ export class TPCUtils {
             // b/w and cpu cases, especially on the low end machines. Suspending the low resolution streams ensures
             // that the highest resolution stream is available always. Safari is an exception here since it does not
             // send the desktop stream at all if only the high resolution stream is enabled.
-            if (this.pc.isSharingLowFpsScreen()
+            if (localVideoTrack.getVideoType() === VideoType.DESKTOP
+                && this.pc._capScreenshareBitrate
                 && this.pc.usesUnifiedPlan()
                 && !browser.isWebKitBased()
                 && this.localStreamEncodingsConfig[idx].scaleResolutionDownBy !== HD_SCALE_FACTOR) {
@@ -322,10 +323,12 @@ export class TPCUtils {
         const desktopShareBitrate = this.pc.options?.videoQuality?.desktopBitrate || DESKTOP_SHARE_RATE;
         const presenterEnabled = localVideoTrack._originalStream
             && localVideoTrack._originalStream.id !== localVideoTrack.getStreamId();
-
+        const lowFpsScreenshare = localVideoTrack.getVideoType() === VideoType.DESKTOP
+            && this.pc._capScreenshareBitrate
+            && !browser.isWebKitBased();
         const encodingsBitrates = this.localStreamEncodingsConfig
         .map(encoding => {
-            const bitrate = this.pc.isSharingLowFpsScreen() && !browser.isWebKitBased()
+            const bitrate = lowFpsScreenshare
 
                 // For low fps screensharing, set a max bitrate of 500 Kbps when presenter is not turned on, 2500 Kbps
                 // otherwise.
@@ -353,7 +356,13 @@ export class TPCUtils {
      */
     replaceTrack(oldTrack, newTrack) {
         const mediaType = newTrack?.getType() ?? oldTrack?.getType();
+        const localTracks = this.pc.getLocalTracks(mediaType);
         const track = newTrack?.getTrack() ?? null;
+        const isNewLocalSource = FeatureFlags.isMultiStreamSupportEnabled()
+            && localTracks?.length
+            && !oldTrack
+            && newTrack
+            && !localTracks.find(t => t === newTrack);
         let transceiver;
 
         // If old track exists, replace the track on the corresponding sender.
@@ -363,20 +372,17 @@ export class TPCUtils {
         // Find the first recvonly transceiver when more than one track of the same media type is being added to the pc.
         // As part of the track addition, a new m-line was added to the remote description with direction set to
         // recvonly.
-        } else if (FeatureFlags.isMultiStreamSupportEnabled()
-            && this.pc.getLocalTracks(mediaType)?.length
-            && !newTrack.conference) {
+        } else if (isNewLocalSource) {
             transceiver = this.pc.peerconnection.getTransceivers().find(
                 t => t.receiver.track.kind === mediaType
                 && t.direction === MediaDirection.RECVONLY
                 && t.currentDirection === MediaDirection.INACTIVE);
 
-        // For unmute operations, find the transceiver based on the track index in the source name if present, otherwise
-        // it is assumed to be the first local track that was added to the peerconnection.
+        // For mute/unmute operations, find the transceiver based on the track index in the source name if present,
+        // otherwise it is assumed to be the first local track that was added to the peerconnection.
         } else {
             transceiver = this.pc.peerconnection.getTransceivers().find(t => t.receiver.track.kind === mediaType);
-
-            const sourceName = newTrack?.getSourceName();
+            const sourceName = newTrack?.getSourceName() ?? oldTrack?.getSourceName();
 
             if (sourceName) {
                 const trackIndex = Number(sourceName.split('-')[1].substring(1));
@@ -449,8 +455,9 @@ export class TPCUtils {
         logger.info(`${this.pc} ${active ? 'Enabling' : 'Suspending'} ${mediaType} media transfer.`);
         transceivers.forEach((transceiver, idx) => {
             if (active) {
-                // The first transceiver is for the local track and only this one can be set to 'sendrecv'
-                if (idx === 0 && localTracks.length) {
+                // The first transceiver is for the local track and only this one can be set to 'sendrecv'.
+                // When multi-stream is enabled, there can be multiple transceivers with outbound streams.
+                if (idx < localTracks.length) {
                     transceiver.direction = MediaDirection.SENDRECV;
                 } else {
                     transceiver.direction = MediaDirection.RECVONLY;

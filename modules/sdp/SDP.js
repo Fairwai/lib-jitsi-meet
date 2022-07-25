@@ -3,7 +3,7 @@ import $ from 'jquery';
 import clonedeep from 'lodash.clonedeep';
 import transform from 'sdp-transform';
 
-import MediaDirection from '../../service/RTC/MediaDirection';
+import { MediaDirection } from '../../service/RTC/MediaDirection';
 import browser from '../browser';
 import FeatureFlags from '../flags/FeatureFlags';
 
@@ -242,10 +242,12 @@ SDP.prototype.toJingle = function(elem, thecreator) {
 
                 for (const [ availableSsrc, ssrcParameters ] of ssrcMap) {
                     const sourceName = SDPUtil.parseSourceNameLine(ssrcParameters);
+                    const videoType = SDPUtil.parseVideoTypeLine(ssrcParameters);
 
                     elem.c('source', {
                         ssrc: availableSsrc,
                         name: FeatureFlags.isSourceNameSignalingEnabled() ? sourceName : undefined,
+                        videoType,
                         xmlns: 'urn:xmpp:jingle:apps:rtp:ssma:0'
                     });
 
@@ -707,7 +709,7 @@ SDP.prototype.jingle2media = function(content) {
                                 + parameter.getAttribute('value'));
                     })
                     .get()
-                    .join('; ');
+                    .join(';');
             sdp += '\r\n';
         }
 

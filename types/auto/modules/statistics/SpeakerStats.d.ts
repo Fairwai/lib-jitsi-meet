@@ -6,11 +6,19 @@
  * which is also tracked.
  */
 declare class SpeakerStats {
-    private _userId;
-    private _isLocalStats;
-    private _dominantSpeakerStart;
-    private _hasLeft;
-    private _facialExpressions;
+    private _userId: string;
+    private _isLocalStats: boolean;
+    private _dominantSpeakerStart: number;
+    private _hasLeft: boolean;;
+    private _faceExpressions: {
+        happy: number;
+        neutral: number;
+        surprised: number;
+        angry: number;
+        fearful: number;
+        disgusted: number;
+        sad:number;
+    };
     totalDominantSpeakerTime: number;
     displayName: string;
     /**
@@ -23,7 +31,7 @@ declare class SpeakerStats {
      * the local user.
      * @returns {void}
      */
-    constructor(userId: any, displayName: any, isLocalStats: any);
+    constructor(userId: string, displayName: string, isLocalStats: boolean);
     /**
      * Get the user id being tracked.
      *
@@ -83,11 +91,11 @@ declare class SpeakerStats {
      */
     markAsHasLeft(): void;
     /**
-     * Gets the facial expressions of the user.
+     * Gets the face expressions of the user.
      *
      * @returns {Object}
      */
-    getFacialExpressions(): {
+     getFaceExpressions(): {
         happy: number;
         neutral: number;
         surprised: number;
@@ -97,30 +105,18 @@ declare class SpeakerStats {
         sad: number;
     };
     /**
-     * Sets the facial expressions of the user.
+     * Sets the face expressions of the user.
      *
-     * @param {Object} facialExpressions - object with facial expressions.
+     * @param {Object} faceExpressions - object with face expressions.
      * @returns {void}
      */
-    setFacialExpressions(facialExpressions: any): void;
+    setFaceExpressions(faceExpressions: any): void;
     /**
-     * Adds a new facial expression to speaker stats.
+     * Adds a new face expression to speaker stats.
      *
-     * @param  {string} facialExpression
+     * @param  {string} faceExpression
      * @param {number} duration
      */
-    addFacialExpression(facialExpression: any, duration: any): void;
+    addFaceExpression(faceExpression: string, duration: number): void;
 }
 export default SpeakerStats;
-/**
- * FacialExpressions Enum
- */
-export declare enum FacialExpressions {
-    happy = "happy",
-    neutral = "neutral",
-    surprised = "surprised",
-    angry = "angry",
-    fearful = "fearful",
-    disgusted = "disgusted",
-    sad = "sad"
-}
