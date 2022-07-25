@@ -1,10 +1,10 @@
 {
-  "name": "@solyd/lib-jitsi-meet",
+  "name": "@vlefr/lib-jitsi-meet",
   "version": "2.7001.1",
   "description": "JS library for accessing Jitsi server side deployments",
   "repository": {
     "type": "git",
-    "url": "git://github.com/solydhq/lib-jitsi-meet"
+    "url": "git://github.com/vlefr/lib-jitsi-meet"
   },
   "keywords": [
     "jingle",
